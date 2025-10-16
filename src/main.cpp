@@ -14,10 +14,10 @@ int main(int argc, char *argv[])
 
     // Uncomment this block to pass the first stage
     //
-    // if (argc < 2) {
-    //     std::cerr << "No command provided.\n";
-    //     return EXIT_FAILURE;
-    // }
+    if (argc < 2) {
+        std::cerr << "No command provided.\n";
+        return EXIT_FAILURE;
+    }
     //
     // std::string command = argv[1];
     //
