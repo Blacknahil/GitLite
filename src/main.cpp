@@ -86,7 +86,7 @@ void readBlobData(std::string& output, const std::string& fileName)
         throw std::runtime_error("Missing null pointer between header and content");
     }
     blobObject.header.assign(decompressed.begin(), nullPtr);
-    blobObject.content.assign(nullPtr, decompressed.end());
+    blobObject.content.assign(nullPtr+1, decompressed.end());
 
     output.assign(blobObject.content.begin(),blobObject.content.end());
 
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     } 
     else if (command == "cat-file")
     {
-        if (argc != 3)
+        if (argc != 4)
         {
             std::cerr << "Blob filename error";
             return EXIT_FAILURE;
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
         std::string output;
         try 
         {
-            readBlobData(output, argv[0]);
+            readBlobData(output, argv[3]);
             std::cout << output;
 
         } catch (const std::exception& e)
