@@ -10,13 +10,10 @@ struct GitObject{
     std::string dirName;
     std::string fileName;
     std::string content;
+    std::string header;
 
     GitObject(std::string name)
     {
-        if (name.length() != 42)
-        {
-            throw std::invalid_argument("Git object name must be at least 2 characters long");
-        }
         dirName = name.substr(0,2);
         fileName = name.substr(2);
     }
@@ -25,6 +22,44 @@ struct GitObject{
 void readBlobData(std::string& output, const std::string& fileName)
 {
     GitObject blobObject(fileName);
+
+    if (blobObject.fileName.length() < 2)
+    {
+        throw std::runtime_error("git object name must be at least 2 characters long!");
+    }
+
+    std::string path("./.git/objects/"+ blobObject.dirName + "/" + blobObject.fileName);
+    std::ifstream file(path, std::ios::binary);
+    if (!file)
+    {
+        throw std::runtime_error("failed to open file " + path);
+    }
+    bool inHeader = true;
+    char c;
+
+    while (file.get(c))
+    {
+        if (inHeader)
+        {
+            if (c == '\0')
+            {
+                inHeader = false;
+                continue;
+            }
+            blobObject.header.push_back(c);
+        }
+        else
+        {
+            blobObject.content.push_back(c);
+        }
+    }
+    if (blobObject.header.empty())
+    {
+        throw std::runtime_error("no header information found!");
+    }
+
+    output.assign(blobObject.content.begin(),blobObject.content.end());
+
 }
 
 int main(int argc, char *argv[])
@@ -77,6 +112,8 @@ int main(int argc, char *argv[])
         try 
         {
             readBlobData(output, argv[0]);
+            std::cout << output;
+            
         } catch (const std::exception& e)
         {
             std::cerr << e.what() << "/n";
