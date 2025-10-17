@@ -3,8 +3,11 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
+#include <vector>
+#include <zlib.h>
 
 struct GitObject{
     std::string dirName;
@@ -18,6 +21,8 @@ struct GitObject{
         fileName = name.substr(2);
     }
 };
+
+
 
 void readBlobData(std::string& output, const std::string& fileName)
 {
@@ -34,29 +39,54 @@ void readBlobData(std::string& output, const std::string& fileName)
     {
         throw std::runtime_error("failed to open file " + path);
     }
-    bool inHeader = true;
-    char c;
+    // save file in memory for decompression 
+    std::vector<unsigned char> compressed(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
 
-    while (file.get(c))
+    // decompress the file using zlib
+    z_stream strm{};
+    strm.next_in = compressed.data();
+    strm.avail_in = compressed.size();
+
+    if(inflateInit(&strm) != Z_OK)
     {
-        if (inHeader)
-        {
-            if (c == '\0')
-            {
-                inHeader = false;
-                continue;
-            }
-            blobObject.header.push_back(c);
-        }
-        else
-        {
-            blobObject.content.push_back(c);
-        }
+        throw std::runtime_error("inflateInit failed");
     }
-    if (blobObject.header.empty())
+
+    const size_t CHUNK_SIZE = 4096;
+    std::vector<unsigned char> buffer(CHUNK_SIZE);
+    std::vector<unsigned char> decompressed;
+
+    int ret;
+    do{
+        strm.next_out = buffer.data();
+        strm.avail_out = buffer.size();
+
+        ret = inflate(&strm, Z_NO_FLUSH);
+        if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR)
+        {
+            inflateEnd(&strm);
+            throw std::runtime_error("Zlib inflate failed!");
+        }
+        decompressed.insert(decompressed.end(), 
+                            buffer.begin(),
+                            buffer.begin() + (buffer.size() - strm.avail_out)
+                            );
+    
+    } while (ret != Z_STREAM_END);
+
+    inflateEnd(&strm);
+
+    /// split the content into headers and contents
+    std::vector<unsigned char>::iterator nullPtr = std::find(decompressed.begin(), decompressed.end(), '\0');
+    if (nullPtr == decompressed.end())
     {
-        throw std::runtime_error("no header information found!");
+        throw std::runtime_error("Missing null pointer between header and content");
     }
+    blobObject.header.assign(decompressed.begin(), nullPtr);
+    blobObject.content.assign(nullPtr, decompressed.end());
 
     output.assign(blobObject.content.begin(),blobObject.content.end());
 
@@ -113,7 +143,7 @@ int main(int argc, char *argv[])
         {
             readBlobData(output, argv[0]);
             std::cout << output;
-            
+
         } catch (const std::exception& e)
         {
             std::cerr << e.what() << "/n";
