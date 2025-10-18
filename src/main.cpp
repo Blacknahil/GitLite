@@ -4,11 +4,15 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <iomanip>
+#include <openssl/sha.h>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include <zlib.h>
 
+const int SHA_DIGEST_LENGTH = 20;
 struct GitObject{
     std::string dirName;
     std::string fileName;
@@ -92,6 +96,46 @@ void readBlobData(std::string& output, const std::string& fileName)
 
 }
 
+void createBlobObject(std::string hash, std::string inputFile)
+{
+    // open file 
+    std::ifstream file(inputFile, std::ios::binary);
+    if(!file)
+    {
+        throw std::runtime_error("failed to open file " + inputFile);
+    }
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    std::string temp(oss.str());
+
+    // produce SHA-1 hash from the content + size + blob
+    std::string uncompressed("blob " + std::to_string(temp.size()) + '\0' + temp);
+    unsigned char byteHash[SHA_DIGEST_LENGTH];
+    SHA1(reinterpret_cast<const unsigned char*>(uncompressed.c_str()),  
+        sizeof(uncompressed),
+        byteHash);
+    // convert the 20 byte hash to 40 character of hexadecimal 
+    std::ostringstream charHash;
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+    {
+         charHash << std::hex << std::setw(2) <<std::setfill('0')<<(int) byteHash[i];
+    }
+
+    // compress the  content + size + blob
+
+    // const size_t CHUNK_SIZE = 4096;
+    // std::vector<unsigned char> buffer(CHUNK_SIZE);
+    uLong uncompressedSize = uncompressed.size();
+    uLong compressedSize = compressBound(uncompressedSize);
+    std::vector<Bytef> compressed(compressedSize);
+
+    int ret = compress(compressed, &compressedSize, reinterpret_cast<const Bytef*>(uncompressed.data()), uncompressedSize);
+
+    // create the SHA-1 file inside the sha1[:2] folder 
+    // write the compressed file to it 
+    // print the file and folder name for verification for the tester
+}
+
 int main(int argc, char *argv[])
 {
     // Flush after every std::cout / std::cerr
@@ -142,7 +186,7 @@ int main(int argc, char *argv[])
         try 
         {
             readBlobData(output, argv[3]);
-            std::cout << output;
+            // std::cout << output;
 
         } catch (const std::exception& e)
         {
@@ -151,6 +195,23 @@ int main(int argc, char *argv[])
         }
 
     }
+    else if (command == "hash-object")
+    {
+        if (argc !=4)
+        {
+            std::cerr << "incorrect cmdline";
+            return EXIT_FAILURE;
+        }
+        if (std::string(argv[2]) != "-w")
+        {
+            std::cerr << "wrong argument needed: -w";
+        }
+        std::string hash;
+        createBlobObject(hash, argv[3]);
+        std::cout << hash;
+
+    }
+
     else{
         std::cerr << "Unknown command " << command << '\n';
         return EXIT_FAILURE;
