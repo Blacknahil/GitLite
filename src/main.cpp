@@ -146,7 +146,7 @@ void createBlobObject(std::string hash, std::string inputFile)
 
     // create the SHA-1 file inside the sha1[:2] folder 
     std::filesystem::path folderPath(".git/objects/" + dirNamePart);
-    if(!std::filesystem::create_directory(folderPath))
+    if(!std::filesystem::create_directories(folderPath))
     {
         std::cerr << "failed to create directory " << folderPath;
         return;
@@ -156,6 +156,7 @@ void createBlobObject(std::string hash, std::string inputFile)
     if (!hashFile.is_open())
     {
         std::cerr << "failed to create or open file " << fileName; 
+        return;
     }
     // write the compressed file to it 
     hashFile.write(reinterpret_cast<const char*>(compressed.data()), compressed.size());
