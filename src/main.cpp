@@ -12,7 +12,6 @@
 #include <vector>
 #include <zlib.h>
 
-const int SHA_DIGEST_LENGTH = 20;
 struct GitObject{
     std::string dirName;
     std::string fileName;
@@ -96,7 +95,7 @@ void readBlobData(std::string& output, const std::string& fileName)
 
 }
 
-void createBlobObject(std::string hash, std::string inputFile)
+void createBlobObject(std::string& hash, std::string inputFile)
 {
     // open file 
     std::ifstream file(inputFile, std::ios::binary);
@@ -148,10 +147,10 @@ void createBlobObject(std::string hash, std::string inputFile)
     std::filesystem::path folderPath(".git/objects/" + dirNamePart);
     if(!std::filesystem::create_directories(folderPath))
     {
-        std::cerr << "failed to create directory " << folderPath;
+        std::cerr << "failed to create directory " << folderPath.string();
         return;
     }
-    std::string fileName(folderPath + "/" + fileNamePart);
+    std::string fileName(folderPath.string() + "/" + fileNamePart);
     std::ofstream hashFile(fileName, std::ios::binary);
     if (!hashFile.is_open())
     {
@@ -215,7 +214,7 @@ int main(int argc, char *argv[])
         try 
         {
             readBlobData(output, argv[3]);
-            // std::cout << output;
+            std::cout << output;
 
         } catch (const std::exception& e)
         {
