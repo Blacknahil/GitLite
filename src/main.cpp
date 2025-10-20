@@ -112,7 +112,7 @@ void createBlobObject(std::string hash, std::string inputFile)
     std::string uncompressed("blob " + std::to_string(temp.size()) + '\0' + temp);
     unsigned char byteHash[SHA_DIGEST_LENGTH];
     SHA1(reinterpret_cast<const unsigned char*>(uncompressed.c_str()),  
-        sizeof(uncompressed),
+        uncompressed.size(),
         byteHash);
     // convert the 20 byte hash to 40 character of hexadecimal 
     std::ostringstream charHash;
@@ -120,6 +120,9 @@ void createBlobObject(std::string hash, std::string inputFile)
     {
          charHash << std::hex << std::setw(2) <<std::setfill('0')<<(int) byteHash[i];
     }
+    std::string hashStr = charHash.str();
+    std::string dirNamePart = hashStr.substr(0,2);
+    std::string fileNamePart = hashStr.substr(2);
 
     // compress the  content + size + blob
 
@@ -129,11 +132,36 @@ void createBlobObject(std::string hash, std::string inputFile)
     uLong compressedSize = compressBound(uncompressedSize);
     std::vector<Bytef> compressed(compressedSize);
 
-    int ret = compress(compressed, &compressedSize, reinterpret_cast<const Bytef*>(uncompressed.data()), uncompressedSize);
+    int ret = compress(compressed.data(), 
+                    &compressedSize, 
+                     reinterpret_cast<const Bytef*>(uncompressed.data()), 
+                  uncompressedSize);
+    
+    if(ret != Z_OK)
+    {
+        std::cerr << "Unable to compress file using zlib";
+        return;
+    }
+    compressed.resize(compressedSize);
 
     // create the SHA-1 file inside the sha1[:2] folder 
+    std::filesystem::path folderPath(".git/objects/" + dirNamePart);
+    if(!std::filesystem::create_directory(folderPath))
+    {
+        std::cerr << "failed to create directory " << folderPath;
+        return;
+    }
+    std::string fileName(folderPath + "/" + fileNamePart);
+    std::ofstream hashFile(fileName, std::ios::binary);
+    if (!hashFile.is_open())
+    {
+        std::cerr << "failed to create or open file " << fileName; 
+    }
     // write the compressed file to it 
+    hashFile.write(reinterpret_cast<const char*>(compressed.data()), compressed.size());
+    hashFile.close();
     // print the file and folder name for verification for the tester
+    std::cout << hashStr;
 }
 
 int main(int argc, char *argv[])
