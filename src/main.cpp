@@ -162,7 +162,7 @@ void createBlobObject(std::string hash, std::string inputFile)
     hashFile.write(reinterpret_cast<const char*>(compressed.data()), compressed.size());
     hashFile.close();
     // print the file and folder name for verification for the tester
-    std::cout << hashStr;
+    hash = hashStr;
 }
 
 int main(int argc, char *argv[])
@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
         }
         if (std::string(argv[2]) != "-w")
         {
-            std::cerr << "wrong argument needed: -w";
+            std::cerr << "missing paramter: -w <fileName>\n";
         }
         std::string hash;
         createBlobObject(hash, argv[3]);
