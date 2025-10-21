@@ -12,6 +12,7 @@
 #include <vector>
 #include <zlib.h>
 
+void readTreeObject(const std::string& treeSha);
 struct GitObject{
     std::string dirName;
     std::string fileName;
@@ -240,10 +241,26 @@ int main(int argc, char *argv[])
 
     }
 
+    else if(command == "ls-tree")
+    {
+        if (argc !=4 || argv[2] !="--name-only")
+        {
+            std::cerr << "wrong paramter usage --name-only <tree_sha>";
+            return EXIT_FAILURE;
+        }
+        readTreeObject(argv[3]);
+
+    }
     else{
         std::cerr << "Unknown command " << command << '\n';
         return EXIT_FAILURE;
     }
     
     return EXIT_SUCCESS;
+}
+
+
+void readTreeObject(const std::string& treeSha)
+{
+    
 }
