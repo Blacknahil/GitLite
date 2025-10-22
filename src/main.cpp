@@ -9,6 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <zlib.h>
 
@@ -17,7 +18,8 @@ struct GitObject{
     std::string dirName;
     std::string fileName;
     std::string content;
-    std::string header;
+    std::string name;
+    size_t size;
 
     GitObject(std::string name)
     {
@@ -28,7 +30,7 @@ struct GitObject{
 
 
 
-void readBlobData(std::string& output, const std::string& fileName)
+void readGitObject(std::string& output, const std::string& fileName)
 {
     GitObject blobObject(fileName);
 
@@ -84,15 +86,20 @@ void readBlobData(std::string& output, const std::string& fileName)
     inflateEnd(&strm);
 
     /// split the content into headers and contents
-    std::vector<unsigned char>::iterator nullPtr = std::find(decompressed.begin(), decompressed.end(), '\0');
-    if (nullPtr == decompressed.end())
+    std::string_view decompressedView(
+                                reinterpret_cast<const char*>(decompressed.data())
+                                , decompressed.size());
+    size_t nullPos = decompressedView.find('\0');
+    if (nullPos == std::string::npos)
     {
         throw std::runtime_error("Missing null pointer between header and content");
     }
-    blobObject.header.assign(decompressed.begin(), nullPtr);
-    blobObject.content.assign(nullPtr+1, decompressed.end());
+    blobObject.content = decompressedView.substr(nullPos+1);
 
-    output.assign(blobObject.content.begin(),blobObject.content.end());
+    std::string_view header = decompressedView.substr(0,nullPos);
+    size_t spacePos = header.find(' ');
+    blobObject.name = header.substr(0,spacePos);
+    blobObject.size = std::stol(std::string(header.substr(spacePos+1)));
 
 }
 
@@ -214,7 +221,7 @@ int main(int argc, char *argv[])
         std::string output;
         try 
         {
-            readBlobData(output, argv[3]);
+            readGitObject(output, argv[3]);
             std::cout << output;
 
         } catch (const std::exception& e)
