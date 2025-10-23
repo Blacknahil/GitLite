@@ -44,7 +44,7 @@ class Tree{
 
 void readTreeObject(const std::string& treeSha);
 void readBlobObject(std::string& output, const std::string& fileName);
-void zlibDecompression(std::string_view& decompressedView, GitObject& object);
+void zlibDecompression(std::string& decompressedView, GitObject& object);
 void createBlobObject(std::string& hash, std::string inputFile);
 void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t len);
 
@@ -53,18 +53,27 @@ void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t l
 void Tree::parseTree(const std::string_view& content)
 {
     size_t l = content.size();
-    size_t pos=0;
+    size_t pos = 0;
+    // std::cout << "content " << content;
     while (pos < l)
     {
         // mode 
         size_t spacePos = content.find(' ',pos);
-        if(spacePos == std::string::npos) break;
+        if(spacePos == std::string::npos) 
+        {
+            std::cout << "space not found";
+            break;
+        }
         std::string_view mode = content.substr(pos,spacePos-pos);
         pos= spacePos + 1;
 
         // name  up to null byte
         size_t nullPos = content.find('\0', pos);
-        if(spacePos == std::string::npos) break;
+        if(nullPos == std::string::npos) 
+        {
+            std::cout << "null byte not found"; 
+            break;
+        }
         std::string_view name = content.substr(pos,nullPos-pos);
         pos= nullPos + 1;
 
@@ -74,6 +83,8 @@ void Tree::parseTree(const std::string_view& content)
         std::string hexHash;
         std::vector<unsigned char> data_vect(byteHash.begin(), byteHash.end());
         byteToHexHash(hexHash, data_vect.data(),data_vect.size());
+
+        // std::cout << "mode: " << mode << " name: " << name << "hex hash: " << hexHash;
 
         TreeEntries entry{mode,name,hexHash};
         if (mode == "40000")
@@ -101,8 +112,9 @@ void readBlobObject(std::string& output, const std::string& fileName)
     {
         throw std::runtime_error("git object name must be at least 2 characters long!");
     }
-    std::string_view decompressedView;
-    zlibDecompression(decompressedView, blobObject);
+    std::string decompressed;
+    zlibDecompression(decompressed, blobObject);
+    std::string_view decompressedView(decompressed);
 
     size_t nullPos = decompressedView.find('\0');
     if (nullPos == std::string::npos)
@@ -115,6 +127,8 @@ void readBlobObject(std::string& output, const std::string& fileName)
     size_t spacePos = header.find(' ');
     blobObject.type = header.substr(0,spacePos);
     blobObject.size = std::stol(std::string(header.substr(spacePos+1)));
+
+    output = std::string(blobObject.content);
 
 }
 
@@ -222,10 +236,19 @@ void readTreeObject(const std::string& treeSha)
     {
         throw std::runtime_error("git object name must be at least 2 characters long!");
     }
-    std::string_view decompressedView;
-    zlibDecompression(decompressedView, treeObject);
+    std::string decompressed;
+    zlibDecompression(decompressed, treeObject);
+    std::string_view decompressedView(decompressed);
+
+    size_t nullPos = decompressedView.find('\0');
+    if (nullPos == std::string::npos)
+    {
+        throw std::runtime_error("Missing null pointer between header and content");
+    }
+    treeObject.content = decompressedView.substr(nullPos+1);
+    std::string_view header = decompressedView.substr(0,nullPos);
     Tree tree;
-    tree.parseTree(decompressedView);
+    tree.parseTree(treeObject.content);
 
     // console log 
 
@@ -235,7 +258,7 @@ void readTreeObject(const std::string& treeSha)
     }
 }
 
-void zlibDecompression(std::string_view& decompressedView, GitObject& object)
+void zlibDecompression(std::string& decompressed, GitObject& object)
 {
     std::string path("./.git/objects/"+ object.dirName + "/" + object.fileName);
     std::ifstream file(path, std::ios::binary);
@@ -261,7 +284,7 @@ void zlibDecompression(std::string_view& decompressedView, GitObject& object)
 
     const size_t CHUNK_SIZE = 4096;
     std::vector<unsigned char> buffer(CHUNK_SIZE);
-    std::vector<unsigned char> decompressed;
+    std::vector<unsigned char> decompressedVector;
 
     int ret;
     do{
@@ -274,7 +297,7 @@ void zlibDecompression(std::string_view& decompressedView, GitObject& object)
             inflateEnd(&strm);
             throw std::runtime_error("Zlib inflate failed!");
         }
-        decompressed.insert(decompressed.end(), 
+        decompressedVector.insert(decompressedVector.end(), 
                             buffer.begin(),
                             buffer.begin() + (buffer.size() - strm.avail_out)
                             );
@@ -283,10 +306,8 @@ void zlibDecompression(std::string_view& decompressedView, GitObject& object)
 
     inflateEnd(&strm);
 
-    /// split the content into headers and contents
-    decompressedView = std::string_view(
-                                reinterpret_cast<const char*>(decompressed.data())
-                                , decompressed.size());
+    
+    decompressed = std::string(decompressedVector.begin(),decompressedVector.end());
 }
 
 void createBlobObject(std::string& hash, std::string inputFile)
