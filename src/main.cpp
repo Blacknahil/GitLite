@@ -50,6 +50,7 @@ void zlibDecompression(std::string& decompressedView, GitObject& object);
 void createBlobObject(std::string& hash, std::string inputFile);
 void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t len);
 void writeTreeObject(std::string& treehash);
+void hexToByteHash(std::string& byteHash, std::string& hexHash);
 
 
 
@@ -399,6 +400,21 @@ void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t l
     }
     hexHash = charHash.str();
 }
+void hexToByteHash(std::string& byteHash, std::string& hexHash)
+{
+    if (hexHash.size() % 2 !=0)
+    {
+        throw std::runtime_error("hex hash can not be converted to 20 byte binary hash");
+    }
+    for (size_t i = 0; i < hexHash.size() ; i+=2)
+    {
+        std::string binarySubString = hexHash.substr(i,2);
+        unsigned char byte = static_cast<unsigned char>(std::stoul(binarySubString, nullptr, 16));
+        byteHash.push_back(byte); 
+
+    }
+}
+
 void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
 {
     if (!fs::exists(dir_path))
@@ -412,38 +428,83 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
         std::cerr << "path is not a directory" << dir_path;
         return;
     }
-
-
+    Tree tree;
     for (fs::directory_entry dir_entry: fs::directory_iterator(dir_path))
     {
         fs::path entry_path = dir_entry.path();
         std::string outputHash;
-        
+        TreeEntries treeEntry;
+
         if (fs::is_regular_file(dir_entry))
         {
+            createBlobObject(outputHash, entry_path.string());
+            std::string binaryHash;
+            hexToByteHash(binaryHash, outputHash);
+
             if (access(entry_path.c_str(), X_OK) == 0)
             {
                 // this is an excutable use mode = 100755
+                treeEntry.mode = "100755";
             }
             else 
             {
                 // it is a regular file use mode = 100644
+                treeEntry.mode = "100644";
             }
+
+            treeEntry.name = entry_path.string();
+            treeEntry.hash = binaryHash;
         }
         else if (fs::is_symlink(dir_entry))
         {
+            createBlobObject(outputHash, entry_path.string());
+            std::string binaryHash;
+            hexToByteHash(binaryHash, outputHash);
             // use mode = 120000
+            treeEntry.mode = "120000";
+            treeEntry.name = entry_path.string();
+            treeEntry.hash = binaryHash;
+
         }
-        else if (fs::is_direcotry(dir_path))
+        else if (fs::is_direcotry(dir_entry))
         {
+            // go recursively here
+            std::string subdirHash;
+            createTreeHash(subdirHash, entry_path);
+            std::string binaryHash;
+            hexToByteHash(binaryHash, subdirHash);
+
+            treeEntry.mode = "40000";
+            treeEntry.name = entry_path.string();
+            treeEntry.hash = binaryHash;
 
         }
         else 
         {
             std::cerr << "skipping undetected object at : " << dir_entry;
-
+            continue;
         }
+
+        tree.entries.push_back(treeEntry);
     }
+    // save the tree entries in a tree object with a header
+    std::string treeContent;
+    for (TreeEntries treeEntry:tree)
+    {
+        treeContent.append(treeEntry.mode);
+        treeContent.push_back(' ');
+        treeContent.append(treeEntry.name);
+        treeContent.push_back('\0');
+        treeContent.append(treeEntry.hash);
+    }
+    std::string treeHeader = "tree " + std::to_string(treeContent.size()) + '\0';
+    std::string treeData;
+    treeData.reserve(treeHeader.size() + treeContent.size());
+    treeData.append(treeHeader);
+    treeData.append(treeContent);
+
+    
+
 }
 
 void writeTreeHash(std::string& treeHash)
