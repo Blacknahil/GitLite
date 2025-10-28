@@ -51,6 +51,11 @@ void createBlobObject(std::string& hash, std::string inputFile);
 void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t len);
 void writeTreeObject(std::string& treehash);
 void hexToByteHash(std::string& byteHash, std::string& hexHash);
+void getSHA1(std::string& shaHash, std::string& data);
+void zlibCompression(std::vector<Bytef>& compressed,
+                    uLong compressedSize, 
+                    uLong uncompressedSize,
+                    std::string uncompressedData);
 
 
 
@@ -340,14 +345,8 @@ void createBlobObject(std::string& hash, std::string inputFile)
 
     // produce SHA-1 hash from the content + size + blob
     std::string uncompressed("blob " + std::to_string(temp.size()) + '\0' + temp);
-    unsigned char byteHash[SHA_DIGEST_LENGTH];
-    SHA1(reinterpret_cast<const unsigned char*>(uncompressed.c_str()),  
-        uncompressed.size(),
-        byteHash);
-    // convert the 20 byte hash to 40 character of hexadecimal 
-
     std::string hashStr;
-    byteToHexHash(hashStr, byteHash, SHA_DIGEST_LENGTH);
+    getSHA1(hashStr, uncompressed);
     std::string dirNamePart = hashStr.substr(0,2);
     std::string fileNamePart = hashStr.substr(2);
 
@@ -358,18 +357,7 @@ void createBlobObject(std::string& hash, std::string inputFile)
     uLong uncompressedSize = uncompressed.size();
     uLong compressedSize = compressBound(uncompressedSize);
     std::vector<Bytef> compressed(compressedSize);
-
-    int ret = compress(compressed.data(), 
-                    &compressedSize, 
-                     reinterpret_cast<const Bytef*>(uncompressed.data()), 
-                  uncompressedSize);
-    
-    if(ret != Z_OK)
-    {
-        std::cerr << "Unable to compress file using zlib";
-        return;
-    }
-    compressed.resize(compressedSize);
+    zlibCompression(compressed, compressedSize, uncompressedSize, uncompressed);
 
     // create the SHA-1 file inside the sha1[:2] folder 
     std::filesystem::path folderPath(".git/objects/" + dirNamePart);
@@ -386,7 +374,8 @@ void createBlobObject(std::string& hash, std::string inputFile)
         return;
     }
     // write the compressed file to it 
-    hashFile.write(reinterpret_cast<const char*>(compressed.data()), compressed.size());
+    hashFile.write(reinterpret_cast<const char*>(compressed.data()), 
+                  compressedSize);
     hashFile.close();
     // print the file and folder name for verification for the tester
     hash = hashStr;
@@ -503,7 +492,40 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
     treeData.append(treeHeader);
     treeData.append(treeContent);
 
-    
+    // produce the SHA-1 hash from the content of the tree object 
+    getSHA1(treeHash, treeData);
+
+    // compress the data 
+    uLong uncompressedSize = treeData.size();
+    uLong compressedSize = compressBound(uncompressedSize);
+    std::vector<Bytef> compressed(compressedSize);
+
+    zlibCompression(compressed,compressedSize,uncompressedSize, treeData);
+
+    // create files and folders and write the content 
+    std::string_view dirNamePart = treeHash.substr(0,2);
+    std::string_veiw fileNamePart = treeHash.substr(2);
+    fs::path folderPath(".git/objects" + dirNamePart);
+    if (!fs::create_directories(folderPath))
+    {
+        std::cerr << "failed to create directory" << folderPath.string();
+        return;
+    }
+    std::string fileName(folderPath.string() + "/" + fileNamePart);
+    std::ofstream file(fileName, std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cerr << "failed to create or open file " << fileName;
+        return;
+    }
+
+    file.write(reinterpret_cast < const char*>(compressed.data()),  compressedSize)
+    file.close()
+
+
+
+
+
 
 }
 
@@ -511,4 +533,33 @@ void writeTreeHash(std::string& treeHash)
 {
     fs::path current_path = fs::current_path();
     createTreeHash(treeHash, current_path);
+}
+
+void getSHA1(std::string& shaHash, std::string& data)
+{
+    unsigned char byteHash[SHA_DIGEST_LENGTH];
+    SHA1(reinterpret_cast<const unsigned char*>(uncompressed.c_str()),  
+        data.size(),
+        byteHash);
+     // convert the 20 byte hash to 40 character of hexadecimal 
+    byteToHexHash(shaHash, byteHash, SHA_DIGEST_LENGTH);
+}
+
+void zlibCompression(std::vector<Bytef>& compressed,
+                    uLong compressedSize, 
+                    uLong uncompressedSize,
+                    std::string uncompressedData)
+{
+
+    int ret = compress(compressed.data(), 
+                    &compressedSize, 
+                     reinterpret_cast<const Bytef*>(uncompressedData.data()), 
+                  uncompressedSize);
+    
+    if(ret != Z_OK)
+    {
+        std::cerr << "Unable to compress file using zlib";
+        return;
+    }
+    compressed.resize(compressedSize);
 }
