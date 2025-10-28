@@ -13,7 +13,9 @@
 #include <type_traits>
 #include <vector>
 #include <zlib.h>
+#include <unistd.h>
 
+namespace fs = std::filesystem;
 struct GitObject{
     std::string dirName;
     std::string fileName;
@@ -47,6 +49,9 @@ void readBlobObject(std::string& output, const std::string& fileName);
 void zlibDecompression(std::string& decompressedView, GitObject& object);
 void createBlobObject(std::string& hash, std::string inputFile);
 void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t len);
+void writeTreeObject(std::string& treehash);
+
+
 
 
 
@@ -220,6 +225,16 @@ int main(int argc, char *argv[])
         readTreeObject(argv[3]);
 
     }
+    else if (command == "write-tree")
+    {
+        if (argc != 2)
+        {
+            std::cerr << "no argument expected";
+        }
+        std::string treeHash;
+        writeTreeObject(treeHash);
+        std::cout << treeHash;
+    }
     else{
         std::cerr << "Unknown command " << command << '\n';
         return EXIT_FAILURE;
@@ -383,4 +398,56 @@ void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t l
          charHash << std::hex << std::setw(2) <<std::setfill('0')<<(int) byteHash[i];
     }
     hexHash = charHash.str();
+}
+void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
+{
+    if (!fs::exists(dir_path))
+    {
+        std::cerr << "directory not found!";
+        return;
+    }
+
+    if (fs::is_directory(dir_path))
+    {
+        std::cerr << "path is not a directory" << dir_path;
+        return;
+    }
+
+
+    for (fs::directory_entry dir_entry: fs::directory_iterator(dir_path))
+    {
+        fs::path entry_path = dir_entry.path();
+        std::string outputHash;
+        
+        if (fs::is_regular_file(dir_entry))
+        {
+            if (access(entry_path.c_str(), X_OK) == 0)
+            {
+                // this is an excutable use mode = 100755
+            }
+            else 
+            {
+                // it is a regular file use mode = 100644
+            }
+        }
+        else if (fs::is_symlink(dir_entry))
+        {
+            // use mode = 120000
+        }
+        else if (fs::is_direcotry(dir_path))
+        {
+
+        }
+        else 
+        {
+            std::cerr << "skipping undetected object at : " << dir_entry;
+
+        }
+    }
+}
+
+void writeTreeHash(std::string& treeHash)
+{
+    fs::path current_path = fs::current_path();
+    createTreeHash(treeHash, current_path);
 }
