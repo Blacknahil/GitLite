@@ -465,7 +465,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
             std::string binaryHash;
             hexToByteHash(binaryHash, subdirHash);
 
-            treeEntry.mode = "040000";
+            treeEntry.mode = "40000";
             treeEntry.name = entry_pathStr;
             treeEntry.hash = binaryHash;
 
@@ -534,6 +534,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
 
     file.write(reinterpret_cast < const char*>(compressed.data()),  compressed.size());
     file.close();
+    // std::cout << "size " << compressed.size() << " ";
 
 }
 
