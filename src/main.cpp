@@ -465,7 +465,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
             std::string binaryHash;
             hexToByteHash(binaryHash, subdirHash);
 
-            treeEntry.mode = "40000";
+            treeEntry.mode = "040000";
             treeEntry.name = entry_pathStr;
             treeEntry.hash = binaryHash;
 
@@ -485,7 +485,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
               tree.entries.end(),
             [](const TreeEntries& a, const TreeEntries& b) 
         {
-            if (a.name == b.name) return a.mode < b.mode;
+            // if (a.name == b.name) return a.mode < b.mode;
             return a.name < b.name;
         });
     
