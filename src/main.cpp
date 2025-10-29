@@ -163,9 +163,9 @@ int main(int argc, char *argv[])
     
     if (command == "init") {
         try {
-            std::filesystem::create_directory(".git");
-            std::filesystem::create_directory(".git/objects");
-            std::filesystem::create_directory(".git/refs");
+            fs::create_directory(".git");
+            fs::create_directory(".git/objects");
+            fs::create_directory(".git/refs");
     
             std::ofstream headFile(".git/HEAD");
             if (headFile.is_open()) {
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
             }
     
             std::cout << "Initialized git directory\n";
-        } catch (const std::filesystem::filesystem_error& e) {
+        } catch (const fs::filesystem_error& e) {
             std::cerr << e.what() << '\n';
             return EXIT_FAILURE;
         }
@@ -360,8 +360,8 @@ void createBlobObject(std::string& hash, std::string inputFile)
     zlibCompression(compressed, compressedSize, uncompressedSize, uncompressed);
 
     // create the SHA-1 file inside the sha1[:2] folder 
-    std::filesystem::path folderPath(".git/objects/" + dirNamePart);
-    if(!std::filesystem::create_directories(folderPath))
+    fs::path folderPath(".git/objects/" + dirNamePart);
+    if(!fs::create_directories(folderPath))
     {
         std::cerr << "failed to create directory " << folderPath.string();
         return;
@@ -404,7 +404,7 @@ void hexToByteHash(std::string& byteHash, std::string& hexHash)
     }
 }
 
-void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
+void createTreeHash(std::string& treeHash, fs::path dir_path)
 {
     if (!fs::exists(dir_path))
     {
@@ -412,15 +412,16 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
         return;
     }
 
-    if (fs::is_directory(dir_path))
+    if (!fs::is_directory(dir_path))
     {
-        std::cerr << "path is not a directory" << dir_path;
+        std::cerr << "path is not a directory " << dir_path;
         return;
     }
     Tree tree;
     for (fs::directory_entry dir_entry: fs::directory_iterator(dir_path))
     {
         fs::path entry_path = dir_entry.path();
+        std::string entry_pathStr = entry_path.filename().string();
         std::string outputHash;
         TreeEntries treeEntry;
 
@@ -441,7 +442,7 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
                 treeEntry.mode = "100644";
             }
 
-            treeEntry.name = entry_path.string();
+            treeEntry.name = entry_pathStr;
             treeEntry.hash = binaryHash;
         }
         else if (fs::is_symlink(dir_entry))
@@ -451,20 +452,20 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
             hexToByteHash(binaryHash, outputHash);
             // use mode = 120000
             treeEntry.mode = "120000";
-            treeEntry.name = entry_path.string();
+            treeEntry.name = entry_pathStr;
             treeEntry.hash = binaryHash;
 
         }
-        else if (fs::is_direcotry(dir_entry))
+        else if (fs::is_directory(dir_entry))
         {
             // go recursively here
             std::string subdirHash;
-            createTreeHash(subdirHash, entry_path);
+            createTreeHash(subdirHash, entry_path.string());
             std::string binaryHash;
             hexToByteHash(binaryHash, subdirHash);
 
             treeEntry.mode = "40000";
-            treeEntry.name = entry_path.string();
+            treeEntry.name = entry_pathStr;
             treeEntry.hash = binaryHash;
 
         }
@@ -477,8 +478,18 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
         tree.entries.push_back(treeEntry);
     }
     // save the tree entries in a tree object with a header
+
+    // sort the tree entries 
+    std::sort(tree.entries.begin(),
+              tree.entries.end(),
+            [](const TreeEntries& a, const TreeEntries& b) 
+        {
+            if (a.name == b.name) return a.mode < b.mode;
+            return a.name < b.name;
+        });
+    
     std::string treeContent;
-    for (TreeEntries treeEntry:tree)
+    for (TreeEntries treeEntry:tree.entries)
     {
         treeContent.append(treeEntry.mode);
         treeContent.push_back(' ');
@@ -486,7 +497,8 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
         treeContent.push_back('\0');
         treeContent.append(treeEntry.hash);
     }
-    std::string treeHeader = "tree " + std::to_string(treeContent.size()) + '\0';
+    std::string treeHeader = "tree " + std::to_string(treeContent.size());
+    treeHeader.push_back('\0');
     std::string treeData;
     treeData.reserve(treeHeader.size() + treeContent.size());
     treeData.append(treeHeader);
@@ -503,9 +515,9 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
     zlibCompression(compressed,compressedSize,uncompressedSize, treeData);
 
     // create files and folders and write the content 
-    std::string_view dirNamePart = treeHash.substr(0,2);
-    std::string_veiw fileNamePart = treeHash.substr(2);
-    fs::path folderPath(".git/objects" + dirNamePart);
+    std::string dirNamePart = treeHash.substr(0,2);
+    std::string fileNamePart = treeHash.substr(2);
+    fs::path folderPath(".git/objects/" + dirNamePart);
     if (!fs::create_directories(folderPath))
     {
         std::cerr << "failed to create directory" << folderPath.string();
@@ -519,17 +531,12 @@ void createTreeHash(std::string& treeHash, std::filesystem::path dir_path)
         return;
     }
 
-    file.write(reinterpret_cast < const char*>(compressed.data()),  compressedSize)
-    file.close()
-
-
-
-
-
+    file.write(reinterpret_cast < const char*>(compressed.data()),  compressedSize);
+    file.close();
 
 }
 
-void writeTreeHash(std::string& treeHash)
+void writeTreeObject(std::string& treeHash)
 {
     fs::path current_path = fs::current_path();
     createTreeHash(treeHash, current_path);
@@ -538,7 +545,7 @@ void writeTreeHash(std::string& treeHash)
 void getSHA1(std::string& shaHash, std::string& data)
 {
     unsigned char byteHash[SHA_DIGEST_LENGTH];
-    SHA1(reinterpret_cast<const unsigned char*>(uncompressed.c_str()),  
+    SHA1(reinterpret_cast<const unsigned char*>(data.c_str()),  
         data.size(),
         byteHash);
      // convert the 20 byte hash to 40 character of hexadecimal 
