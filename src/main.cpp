@@ -532,7 +532,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
         return;
     }
 
-    file.write(reinterpret_cast < const char*>(compressed.data()),  compressedSize);
+    file.write(reinterpret_cast < const char*>(compressed.data()),  compressed.size());
     file.close();
 
 }
