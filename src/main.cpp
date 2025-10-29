@@ -19,7 +19,7 @@ namespace fs = std::filesystem;
 struct GitObject{
     std::string dirName;
     std::string fileName;
-    std::string_view content;
+    std::string content;
     std::string type;
     size_t size;
 
@@ -31,17 +31,17 @@ struct GitObject{
 };
 
 struct TreeEntries{
-    std::string_view mode;
-    std::string_view name;
-    std::string_view hash;
-    std::string_view type;
+    std::string mode;
+    std::string name;
+    std::string hash;
+    std::string type;
 };
 class Tree{
     public:
         std::vector<TreeEntries> entries;
 
     public:
-        void parseTree(const std::string_view& content);
+        void parseTree(const std::string& content);
 };
 
 void readTreeObject(const std::string& treeSha);
@@ -61,7 +61,7 @@ void zlibCompression(std::vector<Bytef>& compressed,
 
 
 
-void Tree::parseTree(const std::string_view& content)
+void Tree::parseTree(const std::string& content)
 {
     size_t l = content.size();
     size_t pos = 0;
@@ -75,7 +75,7 @@ void Tree::parseTree(const std::string_view& content)
             std::cout << "space not found";
             break;
         }
-        std::string_view mode = content.substr(pos,spacePos-pos);
+        std::string mode = content.substr(pos,spacePos-pos);
         pos= spacePos + 1;
 
         // name  up to null byte
@@ -85,11 +85,11 @@ void Tree::parseTree(const std::string_view& content)
             std::cout << "null byte not found"; 
             break;
         }
-        std::string_view name = content.substr(pos,nullPos-pos);
+        std::string name = content.substr(pos,nullPos-pos);
         pos= nullPos + 1;
 
         // 20 bit SHA-1 binary hash
-        std::string_view byteHash = content.substr(pos,20);
+        std::string byteHash = content.substr(pos,20);
         pos += 20;
         std::string hexHash;
         std::vector<unsigned char> data_vect(byteHash.begin(), byteHash.end());
@@ -424,6 +424,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
         std::string entry_pathStr = entry_path.filename().string();
         std::string outputHash;
         TreeEntries treeEntry;
+        if (dir_entry.is_directory() && entry_pathStr == ".git") continue;
 
         if (fs::is_regular_file(dir_entry))
         {
@@ -495,7 +496,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
         treeContent.push_back(' ');
         treeContent.append(treeEntry.name);
         treeContent.push_back('\0');
-        treeContent.append(treeEntry.hash);
+        treeContent.insert(treeContent.end(), treeEntry.hash.begin(), treeEntry.hash.end());
     }
     std::string treeHeader = "tree " + std::to_string(treeContent.size());
     treeHeader.push_back('\0');
@@ -538,7 +539,7 @@ void createTreeHash(std::string& treeHash, fs::path dir_path)
 
 void writeTreeObject(std::string& treeHash)
 {
-    fs::path current_path = fs::current_path();
+    fs::path current_path(".");
     createTreeHash(treeHash, current_path);
 }
 
