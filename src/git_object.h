@@ -18,4 +18,15 @@ enum ObjectType {blob, commit, tree};
 struct Header {
     ObjectType type;
     size_t size;
+
+    std::string typeAsString() const
+    {
+        switch(type)
+        {
+            case blob: return "blob";
+            case commit: return "commit";
+            case tree : return "tree";
+            default: return "unknown";
+        }
+    }
 };

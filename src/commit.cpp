@@ -34,11 +34,16 @@ static std::string getLocalTimeZoneOffSet()
 
 // serialize User method
 
-void User::serialize(std::string& output, const std::string& role)
+void User::serialize(std::string& output, const std::string& role) const
 {
     std::ostringstream oss;
     oss << role << ' ' << name << " <" << email << "> "
         << timestamp << ' ' << timezone << '\n';
 
     output = oss.str();
+}
+
+void Commit::serialize(std::string& output) const 
+{
+    
 }

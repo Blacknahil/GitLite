@@ -10,7 +10,7 @@ struct User {
 
     User(std::string& name, std::string& email);
 
-    void serialize(std::string& output, const std::string& role);
+    void serialize(std::string& output, const std::string& role)const;
 
     static std::string getLocalTimeZoneOffSet();
 };
@@ -21,5 +21,7 @@ struct Commit {
     std::string parent;
     User author;
     User committer;
+
+    void serialize(std::string& output) const;
 
 };
