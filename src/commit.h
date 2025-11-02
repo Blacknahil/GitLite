@@ -5,8 +5,14 @@ struct User {
     std::string name;
     std::string email;
     // timezone and timestamp 
-    long timestamp;
+    time_t timestamp;
     std::string timezone;
+
+    User(std::string& name, std::string& email);
+
+    void serialize(std::string& output, const std::string& role);
+
+    static std::string getLocalTimeZoneOffSet();
 };
 
 
@@ -15,4 +21,5 @@ struct Commit {
     std::string parent;
     User author;
     User committer;
+
 };
