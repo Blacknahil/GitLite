@@ -63,7 +63,7 @@ void createBlobObject(std::string& hash, std::string inputFile)
     std::vector<Bytef> compressed(compressedSize);
     zlibCompression(compressed, compressedSize, uncompressedSize, uncompressed);
 
-    // create the SHA-1 file inside the sha1[:2] folder 
+    // create the SHA-1 file inside the sha1[:2] folder
     fs::path folderPath(".git/objects/" + dirNamePart);
     if(!fs::create_directories(folderPath))
     {

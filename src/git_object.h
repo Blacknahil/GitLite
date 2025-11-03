@@ -19,6 +19,8 @@ struct Header {
     ObjectType type;
     size_t size;
 
+    Header();
+    Header(ObjectType type, size_t size): type(type), size(size){};
     std::string typeAsString() const
     {
         switch(type)
