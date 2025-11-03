@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "blob.h"
+#include "commit.h"
 #include <git_object.h>
 #include <tree.h>
 #include <helper.h>
@@ -115,6 +117,30 @@ int main(int argc, char *argv[])
         writeTreeObject(treeHash);
         std::cout << treeHash;
     }
+    else if (command == "commit-tree")
+    {
+        if (argc != 7)
+        {
+            std::cerr << "wrong paramter"
+                      << "Usage: ./your_program.sh commit-tree <tree_sha> -p <commit_sha> -m <message>";
+            return EXIT_FAILURE;
+        }
+        if (std::string(argv[3]) != "-p")
+        {
+            std::cerr << "parent commit SHA needed";
+            return EXIT_FAILURE;
+        }
+        if (std::string(argv[5]) != "-m")
+        {
+            std::cerr << "message needed for the commit";
+            return EXIT_FAILURE;
+        }
+        std::string commitSha;
+        createCommit(commitSha, std::string(argv[2]), 
+             std::string(argv[4]), std::string(argv[6]));
+        std::cout << commitSha;
+
+    }
     else{
         std::cerr << "Unknown command " << command << '\n';
         return EXIT_FAILURE;
@@ -123,33 +149,4 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-
-void readTreeObject(const std::string& treeSha)
-{
-    GitObject treeObject(treeSha);
-    if (treeObject.fileName.length() < 2)
-    {
-        throw std::runtime_error("git object name must be at least 2 characters long!");
-    }
-    std::string decompressed;
-    zlibDecompression(decompressed, treeObject);
-    std::string_view decompressedView(decompressed);
-
-    size_t nullPos = decompressedView.find('\0');
-    if (nullPos == std::string::npos)
-    {
-        throw std::runtime_error("Missing null pointer between header and content");
-    }
-    treeObject.content = decompressedView.substr(nullPos+1);
-    std::string_view header = decompressedView.substr(0,nullPos);
-    Tree tree;
-    tree.parseTree(treeObject.content);
-
-    // console log 
-
-    for (TreeEntries& entries:tree.entries)
-    {
-        std::cout << entries.name << "\n";
-    }
-}
 
