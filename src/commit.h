@@ -1,4 +1,4 @@
-#include "git_object.h"
+#include "helper.h"
 
 
 struct User {
@@ -8,7 +8,7 @@ struct User {
     time_t timestamp;
     std::string timezone;
 
-    User(std::string& name, std::string& email);
+    User(std::string name, std::string email);
 
     void serialize(std::string& output, const std::string& role)const;
 
@@ -18,10 +18,18 @@ struct User {
 
 struct Commit {
     Header header;
-    std::string parent;
-    User author;
-    User committer;
+    std::string& treeHash;
+    std::string& parent;
+    User& author;
+    User& committer;
+    std::string& message;
 
     void serialize(std::string& output) const;
+    Commit();
 
 };
+
+void createCommit(std::string& commitSha,
+                  std::string treeSha,
+                  std::string parentSha,
+                  std::string message);

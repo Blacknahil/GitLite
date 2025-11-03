@@ -3,9 +3,11 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <vector>
+
 #include "commit.h"
 
-User::User(std::string& name, std::string& email):name(name), email(email)
+User::User(std::string name, std::string email):name(name), email(email)
 {
     timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     timezone = getLocalTimeZoneOffSet();
@@ -45,5 +47,67 @@ void User::serialize(std::string& output, const std::string& role) const
 
 void Commit::serialize(std::string& output) const 
 {
+    std::ostringstream oss;
+    if(!treeHash.empty()) oss << "tree " << treeHash << '\n';
+    if(!parent.empty()) oss << "parent " << parent << '\n';
+    std::string authorSS;
+    std::string committerSS;
+    author.serialize(authorSS, "author");
+    committer.serialize(committerSS, "commit");
+    oss << authorSS << '\n';
+    oss << committerSS << '\n';
+    oss << message << '\n';
+
+    output = oss.str();
+}
+
+void createCommit(std::string& commitSha,
+                  std::string treeSha,
+                  std::string parentSha,
+                  std::string message)
+{
+    Commit commit;
+    commit.treeHash = treeSha;
+    commit.parent = parentSha;
+
+    User author("Nahom Garefo","nahom23@gmail.com");
+    User committer("Blacknahil", "nahil@gmail.com");
+    commit.author = author;
+    commit.committer = committer;
+    commit.message = message;
+
+    std::string commitContent;
+    commit.serialize(commitContent);
+    size_t commitContentSize = commitContent.size();
+    Header header(ObjectType::commit, commitContentSize);
+
+    std::string wholeCommitContent(header.typeAsString() + ' ');
+    wholeCommitContent += header.size;
+    wholeCommitContent += '\0';
+    wholeCommitContent += commitContent;
+
+    // generate sha hash 
+    getSHA1(commitSha, wholeCommitContent);
+    std::string dirNamePart = commitSha.substr(0,2);
+    std::string fileNamePart = commitSha.substr(2);
+
+    // decompress  
+    uLong uncompressedSize = wholeCommitContent.size();
+    uLong compressedSize = compressBound(uncompressedSize);
+    std::vector<Bytef> compressed(compressedSize);
+    zlibCompression(compressed, compressedSize, 
+                        uncompressedSize, 
+                        wholeCommitContent);
     
+
+    // and write to file 
+    bool status = writeToFile(dirNamePart, 
+                              fileNamePart,
+                              compressed, 
+                              compressedSize);
+    if(!status)
+    {
+        std::cerr << "failed to write compressed commit object";
+        return;
+    }
 }
