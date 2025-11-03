@@ -195,3 +195,32 @@ void writeTreeObject(std::string& treeHash)
     fs::path current_path(".");
     createTreeHash(treeHash, current_path);
 }
+
+void readTreeObject(const std::string& treeSha)
+{
+    GitObject treeObject(treeSha);
+    if (treeObject.fileName.length() < 2)
+    {
+        throw std::runtime_error("git object name must be at least 2 characters long!");
+    }
+    std::string decompressed;
+    zlibDecompression(decompressed, treeObject);
+    std::string_view decompressedView(decompressed);
+
+    size_t nullPos = decompressedView.find('\0');
+    if (nullPos == std::string::npos)
+    {
+        throw std::runtime_error("Missing null pointer between header and content");
+    }
+    treeObject.content = decompressedView.substr(nullPos+1);
+    std::string_view header = decompressedView.substr(0,nullPos);
+    Tree tree;
+    tree.parseTree(treeObject.content);
+
+    // console log 
+
+    for (TreeEntries& entries:tree.entries)
+    {
+        std::cout << entries.name << "\n";
+    }
+}

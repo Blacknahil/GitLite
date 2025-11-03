@@ -17,3 +17,4 @@ class Tree{
 
 void readTreeObject(const std::string& treeSha);
 void writeTreeObject(std::string& treehash);
+void readTreeObject(const std::string& treeSha);
