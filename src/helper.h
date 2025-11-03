@@ -12,3 +12,8 @@ void zlibCompression(std::vector<Bytef>& compressed,
                     uLong uncompressedSize,
                     std::string uncompressedData);
 void zlibDecompression(std::string& decompressedView, GitObject& object);
+bool writeToFile(std::string& dirNamePart, 
+                std::string& fileNamePart,
+                std::vector<Bytef>  compressed,
+                uLong compressedSize
+                );

@@ -1,10 +1,11 @@
 #include <iomanip>
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 
 #include "helper.h"
 
-
+namespace fs = std::filesystem;
 
 void byteToHexHash(std::string& hexHash, const unsigned char* byteHash, size_t len){
     std::ostringstream charHash;
@@ -108,4 +109,32 @@ void zlibDecompression(std::string& decompressed, GitObject& object)
 
     
     decompressed = std::string(decompressedVector.begin(),decompressedVector.end());
+}
+
+bool writeToFile(std::string& dirNamePart, 
+                std::string& fileNamePart,
+                std::vector<Bytef>  compressed,
+                uLong compressedSize
+                )
+{
+    fs::path folderPath(".git/objects/" + dirNamePart);
+    if (!fs::create_directories(folderPath))
+    {
+        std::cerr << "failed to create directory " << folderPath.string();
+        return false;
+    }
+    std::string fileName(folderPath.string() + "/" + fileNamePart);
+    std::ofstream hashFile(fileName, std::ios::binary);
+
+    if (!hashFile.is_open())
+    {
+        std::cerr << "failed to create or open file " << fileName; 
+        return false;
+    }
+
+    hashFile.write(reinterpret_cast<const char*>(compressed.data()), 
+                  compressedSize);
+    hashFile.close();
+    return true;
+
 }
