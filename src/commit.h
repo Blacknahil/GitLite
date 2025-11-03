@@ -1,3 +1,5 @@
+#pragma once
+#include "git_object.h"
 #include "helper.h"
 
 
@@ -8,7 +10,8 @@ struct User {
     time_t timestamp;
     std::string timezone;
 
-    User(std::string name, std::string email);
+    User();
+    User(const std::string name, const std::string email);
 
     void serialize(std::string& output, const std::string& role)const;
 
@@ -18,14 +21,22 @@ struct User {
 
 struct Commit {
     Header header;
-    std::string& treeHash;
-    std::string& parent;
-    User& author;
-    User& committer;
-    std::string& message;
+    std::string treeHash;
+    std::string parent;
+    User author;
+    User committer;
+    std::string message;
+
+    Commit(std::string& treeHash, std::string& parent, User& author, User& committer, std::string& message):
+    header(ObjectType::commit, 0),
+    author(author),
+    committer(committer),
+    treeHash(treeHash), parent(parent), message(message)
+    {
+
+    };
 
     void serialize(std::string& output) const;
-    Commit();
 
 };
 

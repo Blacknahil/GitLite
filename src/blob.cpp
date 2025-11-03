@@ -3,8 +3,9 @@
 #include <filesystem>
 
 #include "blob.h"
-#include "helper.h"
 #include "tree.h"
+#include "git_object.h"
+#include "helper.h"
 
 namespace fs = std::filesystem;
 

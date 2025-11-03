@@ -2,6 +2,7 @@
 #include <sstream>
 #include <fstream>
 #include <filesystem>
+#include <openssl/sha.h>
 
 #include "helper.h"
 

@@ -1,6 +1,8 @@
+#pragma once
 #include <iostream>
 #include <unistd.h>
 #include <zlib.h>
+#include <vector>
 
 #include "git_object.h"
 

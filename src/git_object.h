@@ -1,3 +1,5 @@
+// git_object.h
+#pragma once
 #include <cstddef>
 #include <iostream>
 struct GitObject{
@@ -19,7 +21,6 @@ struct Header {
     ObjectType type;
     size_t size;
 
-    Header();
     Header(ObjectType type, size_t size): type(type), size(size){};
     std::string typeAsString() const
     {

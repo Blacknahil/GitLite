@@ -1,17 +1,16 @@
 #include <cstdlib>
 #include <exception>
+#include <fstream>
 #include <iostream>
 #include <iterator>
-#include <openssl/sha.h>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <filesystem>
 
 #include "blob.h"
 #include "commit.h"
-#include <git_object.h>
-#include <tree.h>
-#include <helper.h>
+#include "tree.h"
 
 namespace fs = std::filesystem;
 

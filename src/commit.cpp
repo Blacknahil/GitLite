@@ -16,7 +16,7 @@ User::User(std::string name, std::string email):name(name), email(email)
 
 // getLocaltimeZone off set function static 
 
-static std::string getLocalTimeZoneOffSet()
+std::string User::getLocalTimeZoneOffSet()
 {
     std::time_t now = std::time(nullptr);
     std::tm local_tm = *std::localtime(&now);
@@ -66,23 +66,24 @@ void createCommit(std::string& commitSha,
                   std::string parentSha,
                   std::string message)
 {
-    Commit commit;
-    commit.treeHash = treeSha;
-    commit.parent = parentSha;
+   
 
-    User author("Nahom Garefo","nahom23@gmail.com");
+
+    User author(std::string("Nahom Garefo"),std::string("nahom23@gmail.com"));
     User committer("Blacknahil", "nahil@gmail.com");
+    Commit commit(treeSha, parentSha,
+                          author, committer, message);
     commit.author = author;
     commit.committer = committer;
-    commit.message = message;
 
     std::string commitContent;
     commit.serialize(commitContent);
     size_t commitContentSize = commitContent.size();
     Header header(ObjectType::commit, commitContentSize);
+    commit.header = header;
 
-    std::string wholeCommitContent(header.typeAsString() + ' ');
-    wholeCommitContent += header.size;
+    std::string wholeCommitContent(commit.header.typeAsString() + ' ');
+    wholeCommitContent += commit.header.size;
     wholeCommitContent += '\0';
     wholeCommitContent += commitContent;
 

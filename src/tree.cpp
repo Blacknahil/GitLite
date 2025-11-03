@@ -1,6 +1,11 @@
+#include <filesystem>
+#include <fstream>
 
+#include "blob.h"
 #include "tree.h"
-#include "helper.cpp"
+#include "helper.h"
+
+namespace fs = std::filesystem;
 
 void Tree::parseTree(const std::string& content)
 {

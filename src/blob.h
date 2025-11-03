@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 
 void createBlobObject(std::string& hash, std::string inputFile);
