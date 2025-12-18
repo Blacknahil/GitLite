@@ -1,63 +1,124 @@
+# GitLite — A Minimal Git in C++
 
- <!-- [![progress-banner](https://backend.codecrafters.io/progress/git/66dcb66a-8310-402c-93ff-96d4c9577a98)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF) 
- This is a starting point for C++ solutions to the -->
+GitLite is a small C++ implementation of core Git plumbing. It initializes a repository and creates real Git objects (blobs, trees, commits) using the same storage layout and compression Git uses. It supports a subset of commands for working with the object database and the current working directory.
 
-<!-- ["Build Your Own Git" Challenge](https://codecrafters.io/challenges/git). -->
+## Overview
 
- In this personal challenge,  I built a small Git implementation that's capable of
-initializing a repository, creating commits and cloning a public repository.
-Along the way we'll learn about the `.git` directory, Git objects (blobs,
-commits, trees etc.), Git's transfer protocols and more. 
-<!-- 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+- Stores objects under `.git/objects/<sha[:2]>/<sha[2:]>`.
+- Uses OpenSSL SHA‑1 to hash object payloads.
+- Uses zlib to compress/decompress object data.
+- Encodes object payloads exactly like Git: `"<type> <size>\0<payload>"`.
 
-# Passing the first stage
+## Supported Commands
 
-The entry point for your Git implementation is in `src/main.cpp`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
+These are implemented in `src/main.cpp`:
+
+- `init`: Create a new `.git` directory with `objects`, `refs`, and `HEAD`.
+- `hash-object -w <file>`: Create and store a blob from a file; prints the blob SHA‑1.
+- `cat-file -p <sha>`: Decompress and print a blob’s content.
+- `write-tree`: Snapshot the current directory (skipping `.git`) into a tree object; prints the tree SHA‑1.
+- `ls-tree --name-only <tree_sha>`: List entry names stored in a tree object.
+- `commit-tree <tree_sha> -p <parent_sha> -m <message>`: Create a commit object; prints the commit SHA‑1.
+
+## Build & Run
+
+This project uses CMake and vcpkg for dependencies (OpenSSL, zlib). The included script compiles and runs the binary.
+
+### Prerequisites
+
+- CMake 3.13+
+- A C++23 compiler (e.g., Clang on macOS)
+- vcpkg with OpenSSL and zlib; `VCPKG_ROOT` environment variable set
+
+### Quick Start (Recommended: use a temp directory)
+
+Testing writes to `.git/` in your current directory. To avoid damaging an existing repository, use a clean sandbox path.
 
 ```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+mkdir -p /tmp/gitlite && cd /tmp/gitlite
+/path/to/this/repo/your_program.sh init
 ```
 
-That's all! -->
-
-<!-- # Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `cmake` installed locally
-1. Run `./your_program.sh` to run your Git implementation, which is implemented
-   in `src/main.cpp`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal. -->
-
-# features yet to be implemented
-   1. Cloning a public repository
-
-# Testing locally
-
-The `your_program.sh` script is expected to operate on the `.git` folder inside
-the current working directory. If you're running this inside the root of this
-repository, you might end up accidentally damaging your repository's `.git`
-folder.
-
-We suggest executing `your_program.sh` in a different folder when testing
-locally. For example:
+You can add a convenience alias:
 
 ```sh
-mkdir -p /tmp/testing && cd /tmp/testing
-/path/to/your/repo/your_program.sh init
+alias gitlite=/path/to/this/repo/your_program.sh
+mkdir -p /tmp/gitlite && cd /tmp/gitlite
+gitlite init
 ```
 
-To make this easier to type out, you could add a
-[shell alias](https://shapeshed.com/unix-alias/):
+### Manual Build (optional)
 
 ```sh
-alias mygit=/path/to/your/repo/your_program.sh
+cd /path/to/this/repo
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
+cmake --build ./build
+./build/git init
+```
 
-mkdir -p /tmp/testing && cd /tmp/testing
-mygit init
-``` 
+## Usage Examples
+
+Initialize a repository:
+
+```sh
+gitlite init
+```
+
+Create a blob from a file and print its SHA‑1:
+
+```sh
+echo "hello" > hello.txt
+gitlite hash-object -w hello.txt
+# → prints a 40‑char SHA‑1
+```
+
+Print blob content from the object database:
+
+```sh
+gitlite cat-file -p <blob_sha>
+```
+
+Snapshot the working directory as a tree:
+
+```sh
+gitlite write-tree
+# → prints a tree SHA‑1
+```
+
+List names in a tree object:
+
+```sh
+gitlite ls-tree --name-only <tree_sha>
+```
+
+Create a commit object:
+
+```sh
+gitlite commit-tree <tree_sha> -p <parent_commit_sha> -m "My message"
+# → prints a commit SHA‑1
+```
+
+## How It Works
+
+- **Blob (`src/blob.cpp`)**: Reads file bytes and builds `blob <size>\0<data>`, hashes with SHA‑1, compresses with zlib, and writes to `.git/objects/`.
+- **Tree (`src/tree.cpp`)**: Recursively scans the working directory (skips `.git`), turns files/subdirs into entries with modes (`100644`, `100755`, `120000`, `40000`), encodes entries as `mode SP name NUL <20‑byte raw hash>`, then wraps with `tree <size>\0<content>`, hashes, compresses, and stores.
+- **Commit (`src/commit.cpp`)**: Builds a commit body with `tree`, optional `parent`, `author`, `committer` (name, email, timestamp, timezone), and message; wraps as `commit <size>\0<body>`, hashes, compresses, and stores.
+- **Helpers (`src/helper.cpp`, `src/git_object.h`)**: SHA‑1, zlib (de)compression, hex↔byte conversions, and a tiny `GitObject` helper for locating object files.
+
+## Notes & Limitations
+
+- Focuses on core object plumbing; network protocols and index staging are out of scope.
+- Blob printing via `cat-file -p` is supported; other object pretty‑printing is minimal.
+- Executable detection (`100755`) uses the file’s executable bit; symlinks are encoded as `120000`.
+- Sorting in trees is by entry name to match Git’s canonical ordering.
+
+## Roadmap
+
+- Cloning a public repository (planned)
+- More `cat-file` modes and object introspection
+- Basic branch refs and updating `HEAD`
+
+## Troubleshooting
+
+- If build fails, verify `VCPKG_ROOT` is set and vcpkg has OpenSSL and zlib.
+- Always test in a throwaway directory to avoid modifying a real repo’s `.git`.
