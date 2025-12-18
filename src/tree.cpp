@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 
 #include "blob.h"
 #include "tree.h"
